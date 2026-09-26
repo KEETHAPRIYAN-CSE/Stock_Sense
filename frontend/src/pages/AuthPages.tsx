@@ -243,8 +243,8 @@ function GoogleAuthModal({ isOpen, onClose, onSelectAccount, busy, error }: Goog
 export function LoginPage() {
   const { login, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('manager@stocksense.com')
-  const [password, setPassword] = useState('admin123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -299,7 +299,7 @@ export function LoginPage() {
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. manager@stocksense.com"
+              placeholder="name@company.com"
               required
             />
           </label>
@@ -426,7 +426,7 @@ export function RegisterPage() {
             <input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Alex Morgan"
+              placeholder="First and last name"
               required
             />
           </label>
@@ -436,7 +436,7 @@ export function RegisterPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="alex@company.com"
+              placeholder="name@company.com"
               required
             />
           </label>
@@ -447,7 +447,7 @@ export function RegisterPage() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Choose a strong password"
+              placeholder="Create a strong password"
               required
             />
           </label>
@@ -540,7 +540,7 @@ export function ForgotPasswordPage() {
             Registered Email Address
             <input
               type="email"
-              placeholder="e.g. yourname@gmail.com"
+              placeholder="name@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -620,17 +620,17 @@ export function ResetPasswordPage() {
         <form className="form" onSubmit={onSubmit}>
           <label>
             Email Address
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" required />
           </label>
           <label>
             6-Digit Verification Code (OTP)
             <input
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
-              placeholder="e.g. 874158"
+              placeholder="••••••"
               minLength={6}
               maxLength={6}
-              style={{ letterSpacing: 4, fontWeight: 700, fontSize: 16 }}
+              style={{ letterSpacing: 6, fontWeight: 700, fontSize: 16 }}
               required
             />
           </label>
