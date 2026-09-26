@@ -302,6 +302,9 @@ export function ReceiptDetailPage() {
           </p>
         </div>
         <div className="row-actions">
+          <button className="btn secondary" onClick={() => window.print()}>
+            Print
+          </button>
           {open ? (
             <>
               <button className="btn" disabled={busy} onClick={() => run(() => opsApi.validateReceipt(doc.id), 'Validate receipt and increase stock')}>
@@ -574,6 +577,9 @@ export function DeliveryDetailPage() {
           </p>
         </div>
         <div className="row-actions">
+          <button className="btn secondary" onClick={() => window.print()}>
+            Print
+          </button>
           {open ? (
             <>
               <button className="btn secondary" disabled={busy} onClick={() => run(() => opsApi.pickDelivery(doc.id), 'Mark picked')}>

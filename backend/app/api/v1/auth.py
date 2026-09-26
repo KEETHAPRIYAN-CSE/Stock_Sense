@@ -6,6 +6,7 @@ from app.models.user import User
 from app.schemas.user import (
     ForgotPasswordRequest,
     ForgotPasswordResponse,
+    GoogleLoginRequest,
     ResetPasswordRequest,
     ResetPasswordResponse,
     Token,
@@ -32,6 +33,15 @@ def login(creds: UserLogin, db: Session = Depends(get_db)):
     auth_service = AuthService(db)
     user, access_token = auth_service.authenticate(creds)
     return Token(access_token=access_token, token_type="bearer", user=UserOut.model_validate(user))
+
+
+@router.post("/google", response_model=Token)
+def login_google(req: GoogleLoginRequest, db: Session = Depends(get_db)):
+    """Authenticate or register user via Google SSO."""
+    auth_service = AuthService(db)
+    user, access_token = auth_service.authenticate_google(req)
+    return Token(access_token=access_token, token_type="bearer", user=UserOut.model_validate(user))
+
 
 
 @router.post("/logout")

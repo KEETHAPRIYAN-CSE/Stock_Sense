@@ -28,8 +28,12 @@ class StockSummaryOut(BaseModel):
     category_name: Optional[str] = None
     uom_code: Optional[str] = None
     total_quantity: float
+    on_hand: float = 0.0
+    reserved: float = 0.0
+    free_to_use: float = 0.0
     reorder_level: float
     is_low_stock: bool
+
 
 
 class StockLedgerOut(BaseModel):

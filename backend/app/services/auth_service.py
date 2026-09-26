@@ -58,6 +58,29 @@ class AuthService:
         token = create_access_token(subject=user.id, role=user.role)
         return user, token
 
+    def authenticate_google(self, req: "GoogleLoginRequest") -> Tuple[User, str]:
+        user = self.repo.get_by_email(req.email)
+        if not user:
+            # Auto-provision user on verified Google SSO
+            import secrets
+            rand_pwd = secrets.token_urlsafe(24)
+            user = self.repo.create(
+                full_name=req.full_name or req.email.split("@")[0],
+                email=req.email,
+                password_hash=get_password_hash(rand_pwd),
+                role=req.role or "INVENTORY_MANAGER",
+            )
+        elif not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Inactive user account.",
+            )
+
+        self.repo.update_last_login(user)
+        token = create_access_token(subject=user.id, role=user.role)
+        return user, token
+
+
     def request_password_reset(self, email: str) -> Tuple[str, Optional[str]]:
         user = self.repo.get_by_email(email)
         # Even if user does not exist, return generic message to prevent account enumeration
@@ -71,9 +94,14 @@ class AuthService:
 
         self.repo.create_otp(user_id=user.id, otp_hash=hashed, expires_at=expires_at)
 
-        # In development/testing return raw_otp for testing
+        # Dispatch via SMTP / Gmail
+        from app.services.email_service import send_otp_email
+        send_otp_email(to_email=user.email, otp=raw_otp, user_name=user.full_name)
+
+        # In development/testing return raw_otp for testing/demo evaluation
         dev_otp = raw_otp if settings.ENVIRONMENT in ["development", "test"] else None
         return "If your email is registered, you will receive an OTP shortly.", dev_otp
+
 
     def reset_password(self, email: str, raw_otp: str, new_password: str) -> None:
         user = self.repo.get_by_email(email)

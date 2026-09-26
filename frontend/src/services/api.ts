@@ -47,6 +47,8 @@ export function apiError(err: unknown): string {
 export const authApi = {
   login: (email: string, password: string) =>
     api.post<TokenResponse>('/api/auth/login', { email, password }).then((r) => r.data),
+  google: (payload: { email: string; full_name: string; google_id?: string; role?: string }) =>
+    api.post<TokenResponse>('/api/auth/google', payload).then((r) => r.data),
   register: (payload: { email: string; password: string; full_name: string; role: string }) =>
     api.post<TokenResponse>('/api/auth/register', payload).then((r) => r.data),
   me: () => api.get<User>('/api/auth/me').then((r) => r.data),
@@ -55,6 +57,7 @@ export const authApi = {
     api.post<{ message: string; dev_otp?: string | null }>('/api/auth/forgot-password', { email }).then((r) => r.data),
   reset: (email: string, otp: string, new_password: string) =>
     api.post('/api/auth/reset-password', { email, otp, new_password }).then((r) => r.data),
+
 }
 
 export const masterApi = {

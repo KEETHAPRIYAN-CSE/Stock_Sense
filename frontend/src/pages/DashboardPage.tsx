@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { AlertTriangle, ArrowUpRight, Boxes, CheckCircle2, ClipboardList, Layers, Package, TrendingDown, TrendingUp, Truck, Warehouse } from 'lucide-react'
 import { apiError, dashboardApi } from '../services/api'
 import type { DashboardSummary, LowStockProduct, RecentMovement } from '../types'
 
@@ -29,54 +30,82 @@ export default function DashboardPage() {
     <>
       <div className="page-head">
         <div>
-          <h1>Inventory dashboard</h1>
-          <p>Live counts from PostgreSQL — not a static snapshot.</p>
+          <h1>Inventory Dashboard</h1>
+          <p>Real-time operational ledger metrics & stock replenishment intelligence.</p>
         </div>
-        <Link className="btn" to="/receipts/new">
-          Receive stock
-        </Link>
+        <div className="row-actions">
+          <Link className="btn secondary" to="/stock">
+            <Boxes size={16} /> View Stock
+          </Link>
+          <Link className="btn" to="/receipts/new">
+            <ClipboardList size={16} /> Receive Stock
+          </Link>
+        </div>
       </div>
       <div className="kpis">
         <div className="kpi">
-          <span>Total products</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Total Products</span>
+            <Package size={20} color="var(--accent-light)" />
+          </div>
           <strong>{summary.total_products}</strong>
         </div>
-        <div className="kpi">
-          <span>Low / out of stock</span>
+        <div className="kpi" style={{ borderColor: summary.low_stock_count > 0 ? 'rgba(245, 158, 11, 0.3)' : undefined }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Low / Out Of Stock</span>
+            <AlertTriangle size={20} color={summary.low_stock_count > 0 ? 'var(--warn)' : 'var(--text-dim)'} />
+          </div>
           <strong>
-            {summary.low_stock_count} / {summary.out_of_stock_count}
+            {summary.low_stock_count} <span style={{ fontSize: 16, color: 'var(--text-dim)', fontWeight: 600 }}>/ {summary.out_of_stock_count}</span>
           </strong>
         </div>
         <div className="kpi">
-          <span>Pending receipts</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Pending Receipts</span>
+            <ClipboardList size={20} color="var(--info)" />
+          </div>
           <strong>{summary.pending_receipts}</strong>
         </div>
         <div className="kpi">
-          <span>Pending deliveries</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Pending Deliveries</span>
+            <Truck size={20} color="var(--ok)" />
+          </div>
           <strong>{summary.pending_deliveries}</strong>
         </div>
         <div className="kpi">
-          <span>Scheduled transfers</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Transfers</span>
+            <Layers size={20} color="var(--accent-light)" />
+          </div>
           <strong>{summary.scheduled_transfers}</strong>
         </div>
         <div className="kpi">
-          <span>Warehouses</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Warehouses</span>
+            <Warehouse size={20} color="var(--text-muted)" />
+          </div>
           <strong>{summary.total_warehouses}</strong>
         </div>
       </div>
       <div className="grid-2">
         <div className="panel">
-          <h3>Recent movements</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <h3>Recent Movements</h3>
+            <Link to="/ledger" style={{ fontSize: 13, color: 'var(--accent-light)', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+              Full History <ArrowUpRight size={14} />
+            </Link>
+          </div>
           {moves.length === 0 ? (
             <p className="empty">No ledger activity yet. Validate a receipt to start the trail.</p>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th>When</th>
+                  <th>Timestamp</th>
                   <th>Product</th>
                   <th>Type</th>
-                  <th>Change</th>
+                  <th>Quantity</th>
                 </tr>
               </thead>
               <tbody>
@@ -84,13 +113,18 @@ export default function DashboardPage() {
                   <tr key={m.id}>
                     <td>{m.date}</td>
                     <td>
-                      {m.product_name}
+                      <strong>{m.product_name}</strong>
                       <div className="muted">{m.reference_id}</div>
                     </td>
-                    <td>{m.operation_type}</td>
                     <td>
-                      {m.quantity_change > 0 ? '+' : ''}
-                      {m.quantity_change}
+                      <span className="badge DRAFT">{m.operation_type}</span>
+                    </td>
+                    <td>
+                      <strong style={{ color: m.quantity_change > 0 ? 'var(--ok)' : 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {m.quantity_change > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                        {m.quantity_change > 0 ? '+' : ''}
+                        {m.quantity_change}
+                      </strong>
                     </td>
                   </tr>
                 ))}
@@ -99,26 +133,36 @@ export default function DashboardPage() {
           )}
         </div>
         <div className="panel">
-          <h3>Low stock</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <h3>Low Stock Watchlist</h3>
+            <Link to="/stock" style={{ fontSize: 13, color: 'var(--accent-light)', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
+              All Balances <ArrowUpRight size={14} />
+            </Link>
+          </div>
           {low.length === 0 ? (
-            <p className="empty">No products are at or below reorder level.</p>
+            <div style={{ padding: '24px 12px', textAlign: 'center' }}>
+              <CheckCircle2 size={32} color="var(--ok)" style={{ margin: '0 auto 12px' }} />
+              <p className="empty">All inventory levels are healthy above reorder thresholds.</p>
+            </div>
           ) : (
             <table>
               <thead>
                 <tr>
                   <th>SKU</th>
-                  <th>Qty</th>
-                  <th>Reorder</th>
+                  <th>Current</th>
+                  <th>Reorder Level</th>
                 </tr>
               </thead>
               <tbody>
                 {low.map((p) => (
                   <tr key={p.product_id}>
                     <td>
-                      {p.product_name}
+                      <strong>{p.product_name}</strong>
                       <div className="muted">{p.product_sku}</div>
                     </td>
-                    <td>{p.current_stock}</td>
+                    <td>
+                      <span className="badge OUT_OF_STOCK">{p.current_stock}</span>
+                    </td>
                     <td>{p.reorder_level}</td>
                   </tr>
                 ))}
@@ -130,3 +174,4 @@ export default function DashboardPage() {
     </>
   )
 }
+

@@ -72,9 +72,13 @@ export type StockSummary = {
   category_name?: string | null
   uom_code?: string | null
   total_quantity: number
+  on_hand: number
+  reserved: number
+  free_to_use: number
   reorder_level: number
   is_low_stock: boolean
 }
+
 
 export type LedgerEntry = {
   id: number

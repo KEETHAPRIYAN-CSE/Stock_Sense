@@ -18,6 +18,14 @@ class UserLogin(BaseModel):
     password: str
 
 
+class GoogleLoginRequest(BaseModel):
+    email: EmailStr
+    full_name: str
+    google_id: Optional[str] = None
+    role: Optional[str] = "INVENTORY_MANAGER"
+
+
+
 class UserOut(UserBase):
     id: int
     is_active: bool

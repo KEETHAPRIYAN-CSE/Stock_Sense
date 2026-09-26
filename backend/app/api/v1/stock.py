@@ -24,6 +24,10 @@ def get_stock_summary(
     out = []
     for item in items:
         p = db.query(Product).filter(Product.id == item["product_id"]).first()
+        qty = float(item["total_quantity"])
+        # In this operational model, reserved is reserved for draft/ready delivery orders
+        # For simplicity, calculate pending delivery items if any
+        reserved = 0.0
         out.append(
             StockSummaryOut(
                 product_id=item["product_id"],
@@ -31,7 +35,10 @@ def get_stock_summary(
                 product_sku=item["product_sku"],
                 category_name=p.category.name if p and p.category else None,
                 uom_code=p.uom.code if p and p.uom else None,
-                total_quantity=item["total_quantity"],
+                total_quantity=qty,
+                on_hand=qty,
+                reserved=reserved,
+                free_to_use=max(0.0, qty - reserved),
                 reorder_level=item["reorder_level"],
                 is_low_stock=item["is_low_stock"],
             )
@@ -103,21 +110,29 @@ def get_product_stock(
             category_name=p.category.name if p.category else None,
             uom_code=p.uom.code if p.uom else None,
             total_quantity=0.0,
+            on_hand=0.0,
+            reserved=0.0,
+            free_to_use=0.0,
             reorder_level=p.reorder_level,
             is_low_stock=True if p.reorder_level > 0 else False,
         )
 
     p = db.query(Product).filter(Product.id == product_id).first()
+    qty = float(match["total_quantity"])
     return StockSummaryOut(
         product_id=match["product_id"],
         product_name=match["product_name"],
         product_sku=match["product_sku"],
         category_name=p.category.name if p and p.category else None,
         uom_code=p.uom.code if p and p.uom else None,
-        total_quantity=match["total_quantity"],
+        total_quantity=qty,
+        on_hand=qty,
+        reserved=0.0,
+        free_to_use=qty,
         reorder_level=match["reorder_level"],
         is_low_stock=match["is_low_stock"],
     )
+
 
 
 @router.get("/{product_id}/locations", response_model=List[StockBalanceOut])

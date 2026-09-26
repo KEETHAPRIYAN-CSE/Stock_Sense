@@ -1,64 +1,137 @@
 import { useEffect, useState } from 'react'
-import { apiError, masterApi, stockApi } from '../services/api'
-import type { LedgerEntry, StockSummary, Warehouse } from '../types'
+import { apiError, authApi, masterApi, stockApi } from '../services/api'
+import type { LedgerEntry, StockSummary, User, Warehouse } from '../types'
+
 
 export function StockPage() {
   const [rows, setRows] = useState<StockSummary[]>([])
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   const load = () => {
+    setLoading(true)
+    setError('')
     stockApi
       .summary(search || undefined)
       .then(setRows)
       .catch((err) => setError(apiError(err)))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
+
+  const exportCSV = () => {
+    if (!rows.length) return
+    const headers = ['SKU', 'Product Name', 'Category', 'Unit', 'On Hand', 'Reserved', 'Free to Use', 'Reorder Level', 'Status']
+    const csvRows = rows.map((r) => [
+      `"${r.product_sku}"`,
+      `"${r.product_name}"`,
+      `"${r.category_name || ''}"`,
+      `"${r.uom_code || ''}"`,
+      r.on_hand ?? r.total_quantity,
+      r.reserved ?? 0,
+      r.free_to_use ?? r.total_quantity,
+      r.reorder_level,
+      r.total_quantity <= 0 ? 'OUT OF STOCK' : r.is_low_stock ? 'LOW STOCK' : 'NORMAL',
+    ])
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...csvRows.map((e) => e.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `stocksense_inventory_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
 
   return (
     <>
       <div className="page-head">
         <div>
           <h1>Current stock</h1>
-          <p>Aggregated from stock_balances. Low-stock uses each product reorder level.</p>
+          <p>Live inventory balances calculated from backend ledger (Free to Use = On Hand − Reserved).</p>
+        </div>
+        <div className="row-actions">
+          <button className="btn secondary" onClick={exportCSV} disabled={rows.length === 0}>
+            Export CSV
+          </button>
         </div>
       </div>
       <div className="toolbar">
-        <input placeholder="SKU or name" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input
+          placeholder="Filter by SKU or name…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && load()}
+        />
         <button className="btn secondary" onClick={load}>
           Search
         </button>
+        {search && (
+          <button
+            className="btn secondary"
+            onClick={() => {
+              setSearch('')
+              stockApi.summary().then(setRows).catch((err) => setError(apiError(err)))
+            }}
+          >
+            Clear
+          </button>
+        )}
       </div>
       {error ? <div className="alert">{error}</div> : null}
       <div className="panel">
-        {rows.length === 0 ? (
-          <p className="empty">No stock rows yet.</p>
+        {loading ? (
+          <p className="muted">Loading stock balances…</p>
+        ) : rows.length === 0 ? (
+          <p className="empty">No stock records found.</p>
         ) : (
           <table>
             <thead>
               <tr>
                 <th>SKU</th>
                 <th>Product</th>
-                <th>Qty</th>
+                <th>Category</th>
+                <th>On Hand</th>
+                <th>Reserved</th>
+                <th>Free to Use</th>
+                <th>Reorder Level</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.product_id}>
-                  <td>{r.product_sku}</td>
-                  <td>{r.product_name}</td>
-                  <td>
-                    {r.total_quantity} {r.uom_code}
-                  </td>
-                  <td>
-                    <span className={`badge ${r.total_quantity <= 0 ? 'OUT_OF_STOCK' : r.is_low_stock ? 'LOW_STOCK' : 'NORMAL'}`}>
-                      {r.total_quantity <= 0 ? 'OUT OF STOCK' : r.is_low_stock ? 'LOW STOCK' : 'NORMAL'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {rows.map((r) => {
+                const onHand = r.on_hand ?? r.total_quantity
+                const reserved = r.reserved ?? 0
+                const freeToUse = r.free_to_use ?? Math.max(0, onHand - reserved)
+                const isOut = onHand <= 0
+                const isLow = r.is_low_stock || onHand <= r.reorder_level
+                return (
+                  <tr key={r.product_id}>
+                    <td>
+                      <strong>{r.product_sku}</strong>
+                    </td>
+                    <td>{r.product_name}</td>
+                    <td className="muted">{r.category_name || '—'}</td>
+                    <td>
+                      {onHand} <span className="muted">{r.uom_code}</span>
+                    </td>
+                    <td>
+                      {reserved} <span className="muted">{r.uom_code}</span>
+                    </td>
+                    <td>
+                      <strong>{freeToUse}</strong> <span className="muted">{r.uom_code}</span>
+                    </td>
+                    <td>{r.reorder_level}</td>
+                    <td>
+                      <span className={`badge ${isOut ? 'OUT_OF_STOCK' : isLow ? 'LOW_STOCK' : 'NORMAL'}`}>
+                        {isOut ? 'OUT OF STOCK' : isLow ? 'LOW STOCK' : 'NORMAL'}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
@@ -67,21 +140,41 @@ export function StockPage() {
   )
 }
 
+
 export function LedgerPage() {
   const [rows, setRows] = useState<LedgerEntry[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [operation, setOperation] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
+  const [searchRef, setSearchRef] = useState('')
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   const load = () => {
+    setLoading(true)
+    setError('')
     stockApi
       .ledger({
         operation_type: operation || undefined,
         warehouse_id: warehouseId ? Number(warehouseId) : undefined,
       })
-      .then(setRows)
+      .then((data) => {
+        let filtered = data
+        if (searchRef.trim()) {
+          const s = searchRef.toLowerCase()
+          filtered = filtered.filter(
+            (e) =>
+              e.reference_id.toLowerCase().includes(s) ||
+              e.product_name.toLowerCase().includes(s) ||
+              e.product_sku.toLowerCase().includes(s) ||
+              (e.created_by_name && e.created_by_name.toLowerCase().includes(s)),
+          )
+        }
+        setRows(filtered)
+      })
       .catch((err) => setError(apiError(err)))
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => {
@@ -89,15 +182,64 @@ export function LedgerPage() {
     load()
   }, [])
 
+  const exportCSV = () => {
+    if (!rows.length) return
+    const headers = ['Timestamp', 'Product SKU', 'Product Name', 'Warehouse', 'Location', 'Operation', 'Reference', 'Before', 'Change', 'After', 'User']
+    const csvRows = rows.map((e) => [
+      `"${new Date(e.created_at).toISOString()}"`,
+      `"${e.product_sku}"`,
+      `"${e.product_name}"`,
+      `"${e.warehouse_name}"`,
+      `"${e.location_name}"`,
+      `"${e.operation_type}"`,
+      `"${e.reference_id}"`,
+      e.quantity_before,
+      e.quantity_change,
+      e.quantity_after,
+      `"${e.created_by_name || ''}"`,
+    ])
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...csvRows.map((r) => r.join(','))].join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', `stocksense_move_history_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   return (
     <>
       <div className="page-head">
         <div>
           <h1>Move history</h1>
-          <p>Append-only stock ledger. Corrections must be new compensating documents.</p>
+          <p>Append-only stock movements ledger. Every receipt, delivery, transfer, and adjustment is recorded here.</p>
+        </div>
+        <div className="row-actions">
+          <button
+            className={`btn ${viewMode === 'list' ? '' : 'secondary'}`}
+            onClick={() => setViewMode('list')}
+          >
+            List View
+          </button>
+          <button
+            className={`btn ${viewMode === 'kanban' ? '' : 'secondary'}`}
+            onClick={() => setViewMode('kanban')}
+          >
+            Kanban View
+          </button>
+          <button className="btn secondary" onClick={exportCSV} disabled={rows.length === 0}>
+            Export CSV
+          </button>
         </div>
       </div>
       <div className="toolbar">
+        <input
+          placeholder="Filter by Ref, Product, SKU or User…"
+          value={searchRef}
+          onChange={(e) => setSearchRef(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && load()}
+        />
         <select value={operation} onChange={(e) => setOperation(e.target.value)}>
           <option value="">All operations</option>
           {['INITIAL', 'RECEIPT', 'DELIVERY', 'TRANSFER_OUT', 'TRANSFER_IN', 'ADJUSTMENT'].map((op) => (
@@ -119,22 +261,27 @@ export function LedgerPage() {
         </button>
       </div>
       {error ? <div className="alert">{error}</div> : null}
-      <div className="panel">
-        {rows.length === 0 ? (
-          <p className="empty">No ledger entries.</p>
-        ) : (
+      
+      {loading ? (
+        <p className="muted">Loading move history…</p>
+      ) : rows.length === 0 ? (
+        <div className="panel">
+          <p className="empty">No move history records match the filters.</p>
+        </div>
+      ) : viewMode === 'list' ? (
+        <div className="panel">
           <table>
             <thead>
               <tr>
-                <th>When</th>
+                <th>Date & Time</th>
                 <th>Product</th>
                 <th>Location</th>
-                <th>Op</th>
-                <th>Ref</th>
+                <th>Operation</th>
+                <th>Reference</th>
                 <th>Before</th>
                 <th>Change</th>
                 <th>After</th>
-                <th>User</th>
+                <th>Responsible</th>
               </tr>
             </thead>
             <tbody>
@@ -142,18 +289,24 @@ export function LedgerPage() {
                 <tr key={e.id}>
                   <td>{new Date(e.created_at).toLocaleString()}</td>
                   <td>
-                    {e.product_name}
+                    <strong>{e.product_name}</strong>
                     <div className="muted">{e.product_sku}</div>
                   </td>
                   <td>
                     {e.warehouse_name} / {e.location_name}
                   </td>
-                  <td>{e.operation_type}</td>
-                  <td>{e.reference_id}</td>
+                  <td>
+                    <span className="badge DRAFT">{e.operation_type}</span>
+                  </td>
+                  <td>
+                    <code>{e.reference_id}</code>
+                  </td>
                   <td>{e.quantity_before}</td>
                   <td>
-                    {e.quantity_change > 0 ? '+' : ''}
-                    {e.quantity_change}
+                    <strong style={{ color: e.quantity_change > 0 ? 'var(--ok)' : 'var(--danger)' }}>
+                      {e.quantity_change > 0 ? '+' : ''}
+                      {e.quantity_change}
+                    </strong>
                   </td>
                   <td>{e.quantity_after}</td>
                   <td>{e.created_by_name || '—'}</td>
@@ -161,11 +314,46 @@ export function LedgerPage() {
               ))}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="kpis" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+          {['RECEIPT', 'DELIVERY', 'TRANSFER_OUT', 'TRANSFER_IN', 'ADJUSTMENT', 'INITIAL'].map((opType) => {
+            const items = rows.filter((r) => r.operation_type === opType)
+            return (
+              <div key={opType} className="panel" style={{ minHeight: 220 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span className="badge DRAFT">{opType}</span>
+                  <span className="muted">{items.length} moves</span>
+                </div>
+                {items.length === 0 ? (
+                  <p className="empty" style={{ fontSize: 13 }}>No movements in this category.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {items.slice(0, 10).map((m) => (
+                      <div key={m.id} className="meta-box" style={{ padding: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <strong>{m.product_name}</strong>
+                          <strong style={{ color: m.quantity_change > 0 ? 'var(--ok)' : 'var(--danger)' }}>
+                            {m.quantity_change > 0 ? '+' : ''}
+                            {m.quantity_change}
+                          </strong>
+                        </div>
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          {m.reference_id} · {m.location_name}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </>
   )
 }
+
 
 export function WarehousesPage() {
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -291,29 +479,71 @@ export function WarehousesPage() {
 }
 
 export function ProfilePage() {
-  const raw = localStorage.getItem('ss_user')
-  const user = raw ? (JSON.parse(raw) as { full_name: string; email: string; role: string }) : null
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setLoading(true)
+    authApi
+      .me()
+      .then((data) => {
+        setUser(data)
+        localStorage.setItem('ss_user', JSON.stringify(data))
+      })
+      .catch((err) => setError(apiError(err)))
+      .finally(() => setLoading(false))
+  }, [])
+
   return (
-    <div className="panel" style={{ maxWidth: 520 }}>
-      <h1>My profile</h1>
-      {user ? (
-        <div className="detail-meta">
-          <div className="meta-box">
-            <span>Name</span>
-            {user.full_name}
+    <div style={{ maxWidth: 840 }}>
+      <div className="page-head">
+        <div>
+          <h1>My Profile</h1>
+          <p>Live verified account credentials from StockSense authentication service.</p>
+        </div>
+      </div>
+      {error ? <div className="alert">{error}</div> : null}
+      {loading ? (
+        <p className="muted">Fetching verified profile…</p>
+      ) : user ? (
+        <div className="panel">
+          <div className="detail-meta" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+            <div className="meta-box">
+              <span>Full Name</span>
+              <strong style={{ fontSize: 16, color: 'var(--text-main)' }}>{user.full_name}</strong>
+            </div>
+            <div className="meta-box">
+              <span>Email Address</span>
+              <strong style={{ fontSize: 16, color: 'var(--text-main)' }}>{user.email}</strong>
+            </div>
+            <div className="meta-box">
+              <span>Assigned Role</span>
+              <div style={{ marginTop: 4 }}>
+                <span className={`badge ${user.role === 'INVENTORY_MANAGER' ? 'READY' : 'DONE'}`}>
+                  {user.role.replaceAll('_', ' ')}
+                </span>
+              </div>
+            </div>
+            <div className="meta-box">
+              <span>Account Status</span>
+              <div style={{ marginTop: 4 }}>
+                <span className="badge NORMAL">ACTIVE</span>
+              </div>
+            </div>
           </div>
-          <div className="meta-box">
-            <span>Email</span>
-            {user.email}
-          </div>
-          <div className="meta-box">
-            <span>Role</span>
-            {user.role.replaceAll('_', ' ')}
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className="muted" style={{ fontSize: 13 }}>
+              Member since: {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Active Session'}
+            </span>
           </div>
         </div>
       ) : (
-        <p className="empty">No profile loaded.</p>
+        <div className="panel">
+          <p className="empty">No profile data available.</p>
+        </div>
       )}
     </div>
   )
 }
+

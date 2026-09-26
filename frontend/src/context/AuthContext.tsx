@@ -6,6 +6,7 @@ type AuthContextValue = {
   user: User | null
   token: string | null
   login: (email: string, password: string) => Promise<void>
+  loginWithGoogle: (payload: { email: string; full_name: string; google_id?: string; role?: string }) => Promise<void>
   register: (payload: { email: string; password: string; full_name: string; role: string }) => Promise<void>
   logout: () => void
 }
@@ -41,6 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const res = await authApi.login(email, password)
         persist(res.access_token, res.user)
       },
+      loginWithGoogle: async (payload) => {
+        const res = await authApi.google(payload)
+        persist(res.access_token, res.user)
+      },
       register: async (payload) => {
         const res = await authApi.register(payload)
         persist(res.access_token, res.user)
@@ -55,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }),
     [token, user],
   )
+
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
