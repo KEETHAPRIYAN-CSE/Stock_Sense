@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, X, Check, User as UserIcon } from 'lucide-react'
 import { apiError, authApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -16,6 +16,29 @@ function AuthBrand() {
   )
 }
 
+function GoogleLogo() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24">
+      <path
+        fill="#EA4335"
+        d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.3 14.7c-.2-.7-.4-1.5-.4-2.7s.1-2 .4-2.7L1.6 6.4C.6 8.3 0 10.1 0 12s.6 3.7 1.6 5.6l3.7-2.9z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 16c1.9 3.8 5.8 7 10.4 7z"
+      />
+    </svg>
+  )
+}
+
 function GoogleButton({ onClick, label = 'Sign in with Google' }: { onClick: () => void; label?: string }) {
   return (
     <button
@@ -26,33 +49,16 @@ function GoogleButton({ onClick, label = 'Sign in with Google' }: { onClick: () 
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 10,
-        padding: '11px 16px',
+        gap: 12,
+        padding: '12px 18px',
         fontWeight: 600,
         backgroundColor: '#ffffff',
         borderColor: '#d5cec0',
-        color: '#2e2a27',
+        color: '#282421',
       }}
       onClick={onClick}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24">
-        <path
-          fill="#EA4335"
-          d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"
-        />
-        <path
-          fill="#4285F4"
-          d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.9z"
-        />
-        <path
-          fill="#FBBC05"
-          d="M5.3 14.7c-.2-.7-.4-1.5-.4-2.7s.1-2 .4-2.7L1.6 6.4C.6 8.3 0 10.1 0 12s.6 3.7 1.6 5.6l3.7-2.9z"
-        />
-        <path
-          fill="#34A853"
-          d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 16c1.9 3.8 5.8 7 10.4 7z"
-        />
-      </svg>
+      <GoogleLogo />
       {label}
     </button>
   )
@@ -70,6 +76,170 @@ function AuthFooter() {
   )
 }
 
+interface GoogleAuthModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSelectAccount: (email: string, fullName: string) => Promise<void>
+  busy: boolean
+  error?: string
+}
+
+function GoogleAuthModal({ isOpen, onClose, onSelectAccount, busy, error }: GoogleAuthModalProps) {
+  const [customEmail, setCustomEmail] = useState('')
+  const [isCustom, setIsCustom] = useState(false)
+
+  if (!isOpen) return null
+
+  const defaultAccount = {
+    email: 'keethapriyan.71382402066@sritcbe.ac.in',
+    name: 'Keethapriyan',
+    pictureLetter: 'K',
+  }
+
+  const handleCustomSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!customEmail.trim()) return
+    const name = customEmail.split('@')[0]
+    onSelectAccount(customEmail.trim(), name)
+  }
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1000 }}>
+      <div className="modal" style={{ maxWidth: 460, padding: 32, borderRadius: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <GoogleLogo />
+            <div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-title)' }}>Sign in with Google</h2>
+              <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: '2px 0 0' }}>Choose an account to continue to StockSense</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            style={{ background: 'none', border: 0, cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {error ? <div className="alert" style={{ marginBottom: 16 }}>{error}</div> : null}
+
+        {!isCustom ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Primary Google Account Card */}
+            <div
+              onClick={() => !busy && onSelectAccount(defaultAccount.email, defaultAccount.name)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '14px 16px',
+                border: '1.5px solid #ded7c6',
+                borderRadius: 12,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                background: '#faf8f5',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (!busy) e.currentTarget.style.backgroundColor = '#f3eee4'
+              }}
+              onMouseLeave={(e) => {
+                if (!busy) e.currentTarget.style.backgroundColor = '#faf8f5'
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #1d7468, #15803d)',
+                  color: '#fff',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontWeight: 700,
+                  fontSize: 16,
+                }}
+              >
+                {defaultAccount.pictureLetter}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong style={{ display: 'block', fontSize: 14, color: 'var(--text-dark)' }}>{defaultAccount.name}</strong>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {defaultAccount.email}
+                </span>
+              </div>
+              <Check size={18} color="var(--ok)" />
+            </div>
+
+            {/* Quick 1-Click Action */}
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => onSelectAccount(defaultAccount.email, defaultAccount.name)}
+              style={{ width: '100%', padding: '12px', marginTop: 4 }}
+            >
+              {busy ? 'Authenticating with Google…' : `Continue as ${defaultAccount.name}`}
+            </button>
+
+            <button
+              type="button"
+              className="btn secondary"
+              disabled={busy}
+              onClick={() => setIsCustom(true)}
+              style={{ width: '100%', padding: '10px', fontSize: 13.5 }}
+            >
+              <UserIcon size={16} /> Use another Google account
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleCustomSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>
+              Enter your Google / Gmail Email:
+              <input
+                type="email"
+                placeholder="name@gmail.com"
+                value={customEmail}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                autoFocus
+                required
+                style={{ width: '100%', marginTop: 6 }}
+              />
+            </label>
+            <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={() => setIsCustom(false)}
+                disabled={busy}
+                style={{ flex: 1 }}
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                className="btn"
+                disabled={busy || !customEmail.trim()}
+                style={{ flex: 2 }}
+              >
+                {busy ? 'Signing in…' : 'Sign in'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #ede8de', textAlign: 'center' }}>
+          <p style={{ fontSize: 11.5, color: 'var(--text-dim)', margin: 0 }}>
+            To continue, Google will share your name and email address with StockSense.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function LoginPage() {
   const { login, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
@@ -78,21 +248,17 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showGoogleModal, setShowGoogleModal] = useState(false)
 
-  const onGoogleLogin = async () => {
-    const googleEmail = window.prompt(
-      'Enter your Google / Gmail account:',
-      'keethapriyan.71382402066@sritcbe.ac.in',
-    )
-    if (!googleEmail || !googleEmail.trim()) return
-
+  const onGoogleAccountSelected = async (googleEmail: string, fullName: string) => {
     setBusy(true)
     setError('')
     try {
       await loginWithGoogle({
-        email: googleEmail.trim(),
-        full_name: googleEmail.split('@')[0],
+        email: googleEmail,
+        full_name: fullName,
       })
+      setShowGoogleModal(false)
       navigate('/')
     } catch (err) {
       setError(apiError(err))
@@ -177,7 +343,7 @@ export function LoginPage() {
           <div style={{ flex: 1, height: 1, background: '#ded7c6' }} />
         </div>
 
-        <GoogleButton onClick={onGoogleLogin} label="Sign in with Google" />
+        <GoogleButton onClick={() => setShowGoogleModal(true)} label="Sign in with Google" />
       </div>
 
       {/* Secondary Card: Don't have an account? */}
@@ -189,6 +355,15 @@ export function LoginPage() {
       </div>
 
       <AuthFooter />
+
+      {/* Google Sign In Modal */}
+      <GoogleAuthModal
+        isOpen={showGoogleModal}
+        onClose={() => setShowGoogleModal(false)}
+        onSelectAccount={onGoogleAccountSelected}
+        busy={busy}
+        error={error}
+      />
     </div>
   )
 }
@@ -202,22 +377,18 @@ export function RegisterPage() {
   const [role, setRole] = useState('INVENTORY_MANAGER')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showGoogleModal, setShowGoogleModal] = useState(false)
 
-  const onGoogleSignUp = async () => {
-    const googleEmail = window.prompt(
-      'Enter your Google / Gmail account:',
-      'keethapriyan.71382402066@sritcbe.ac.in',
-    )
-    if (!googleEmail || !googleEmail.trim()) return
-
+  const onGoogleAccountSelected = async (googleEmail: string, name: string) => {
     setBusy(true)
     setError('')
     try {
       await loginWithGoogle({
-        email: googleEmail.trim(),
-        full_name: googleEmail.split('@')[0],
+        email: googleEmail,
+        full_name: name,
         role: role,
       })
+      setShowGoogleModal(false)
       navigate('/')
     } catch (err) {
       setError(apiError(err))
@@ -300,7 +471,7 @@ export function RegisterPage() {
           <div style={{ flex: 1, height: 1, background: '#ded7c6' }} />
         </div>
 
-        <GoogleButton onClick={onGoogleSignUp} label="Sign up with Google" />
+        <GoogleButton onClick={() => setShowGoogleModal(true)} label="Sign up with Google" />
       </div>
 
       <div className="auth-card secondary-card">
@@ -311,6 +482,15 @@ export function RegisterPage() {
       </div>
 
       <AuthFooter />
+
+      {/* Google Sign In Modal */}
+      <GoogleAuthModal
+        isOpen={showGoogleModal}
+        onClose={() => setShowGoogleModal(false)}
+        onSelectAccount={onGoogleAccountSelected}
+        busy={busy}
+        error={error}
+      />
     </div>
   )
 }
