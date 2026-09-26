@@ -30,4 +30,4 @@ Establish the repository foundation, core documentation, directory layout, git t
 - Run git status
 
 ## Status
-IN_PROGRESS
+COMPLETE
