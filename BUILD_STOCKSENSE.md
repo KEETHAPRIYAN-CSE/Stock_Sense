@@ -1,4 +1,4 @@
-# StockSense --- Autonomous Full-Stack Build Specification
+# StockSense --- Autonomous Full-Stack Build Specification #
 
 ## Purpose
 
