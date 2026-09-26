@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     ENVIRONMENT: str = "development"
 
-    DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/stocksense_db"
+    DATABASE_URL: str = "sqlite:///./stocksense.db"
 
     JWT_SECRET: str = "stocksense-super-secret-jwt-key-minimum-32-chars-for-hmac-sha256"
     JWT_ALGORITHM: str = "HS256"

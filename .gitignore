@@ -13,6 +13,8 @@ env/
 venv/
 .venv/
 ENV/
+*.db
+*.sqlite3
 
 # Testing & Coverage
 .pytest_cache/

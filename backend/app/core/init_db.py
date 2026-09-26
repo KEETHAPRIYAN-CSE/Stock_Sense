@@ -1,23 +1,8 @@
-"""
-Seed StockSense with demo master data.
-
-Run from the backend directory so app imports resolve:
-
-    cd backend
-    python ../scripts/seed_database.py
-"""
-from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-BACKEND_DIR = Path(__file__).resolve().parents[1] / "backend"
-sys.path.insert(0, str(BACKEND_DIR))
-
-from app.core.database import Base, engine, SessionLocal  # noqa: E402
-from app.core.security import get_password_hash  # noqa: E402
-import app.models  # noqa: E402
-from app.models import (  # noqa: E402
+from sqlalchemy.orm import Session
+from app.core.database import Base, engine, SessionLocal
+from app.core.security import get_password_hash
+import app.models  # Ensure all models are imported
+from app.models import (
     Category,
     Customer,
     Location,
@@ -31,7 +16,7 @@ from app.models import (  # noqa: E402
 )
 
 
-def get_or_create(session, model, defaults=None, **lookup):
+def get_or_create(session: Session, model, defaults=None, **lookup):
     instance = session.query(model).filter_by(**lookup).first()
     if instance:
         return instance, False
@@ -42,12 +27,13 @@ def get_or_create(session, model, defaults=None, **lookup):
     return instance, True
 
 
-def seed() -> None:
+def init_db() -> None:
+    """Initialize database tables and seed baseline demo data."""
     Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
+    db: Session = SessionLocal()
     try:
+        # Seed or sync Manager account
         manager = db.query(User).filter_by(email="manager@stocksense.com").first()
-        created_manager = False
         if not manager:
             manager = User(
                 email="manager@stocksense.com",
@@ -58,11 +44,12 @@ def seed() -> None:
             )
             db.add(manager)
             db.flush()
-            created_manager = True
         else:
+            # Guarantee password_hash matches admin123
             manager.password_hash = get_password_hash("admin123")
             manager.is_active = True
 
+        # Seed or sync Staff account
         staff = db.query(User).filter_by(email="staff@stocksense.com").first()
         if not staff:
             staff = User(
@@ -78,15 +65,18 @@ def seed() -> None:
             staff.password_hash = get_password_hash("staff123")
             staff.is_active = True
 
+        # Seed Categories
         raw, _ = get_or_create(db, Category, name="Raw Materials", defaults={"description": "Incoming raw inputs"})
         finished, _ = get_or_create(db, Category, name="Finished Goods", defaults={"description": "Sellable completed items"})
         components, _ = get_or_create(db, Category, name="Components", defaults={"description": "Assembly parts"})
 
+        # Seed UOMs
         kg, _ = get_or_create(db, UOM, code="kg", defaults={"name": "Kilogram"})
         pcs, _ = get_or_create(db, UOM, code="pcs", defaults={"name": "Piece"})
         box, _ = get_or_create(db, UOM, code="box", defaults={"name": "Box"})
         get_or_create(db, UOM, code="m", defaults={"name": "Meter"})
 
+        # Seed Warehouses
         main_wh, _ = get_or_create(
             db,
             Warehouse,
@@ -100,6 +90,7 @@ def seed() -> None:
             defaults={"name": "Satellite Warehouse", "address": "North Yard, Dock 4"},
         )
 
+        # Seed Locations
         main_store, _ = get_or_create(
             db,
             Location,
@@ -136,6 +127,7 @@ def seed() -> None:
             defaults={"name": "Satellite Bay", "location_type": "STORAGE"},
         )
 
+        # Seed Suppliers
         get_or_create(
             db,
             Supplier,
@@ -148,6 +140,8 @@ def seed() -> None:
             name="BoltWorks Co",
             defaults={"contact_name": "Imran Khan", "email": "orders@boltworks.example", "phone": "+91 90000 22222"},
         )
+
+        # Seed Customers
         get_or_create(
             db,
             Customer,
@@ -161,6 +155,7 @@ def seed() -> None:
             defaults={"email": "ops@urbanseating.example", "phone": "+91 80000 22222", "address": "Showroom Park, Block C"},
         )
 
+        # Seed Products
         products = [
             ("Steel Rods", "ROD-001", raw.id, kg.id, 20.0),
             ("Chairs", "CHR-010", finished.id, pcs.id, 10.0),
@@ -183,7 +178,6 @@ def seed() -> None:
                 },
             )
             if created:
-                # Leave stock at zero so the live demo can receive 100 kg Steel Rods.
                 db.add(
                     StockBalance(
                         product_id=product.id,
@@ -208,19 +202,8 @@ def seed() -> None:
                 )
 
         db.commit()
-        print("Seed complete.")
-        print("Demo login: manager@stocksense.com / admin123")
-        if created_manager:
-            print("Created inventory manager account.")
-        else:
-            print("Inventory manager already existed; passwords were not overwritten.")
-        print("Use Main Store and Production Rack for the required demo transfer.")
     except Exception:
         db.rollback()
         raise
     finally:
         db.close()
-
-
-if __name__ == "__main__":
-    seed()
