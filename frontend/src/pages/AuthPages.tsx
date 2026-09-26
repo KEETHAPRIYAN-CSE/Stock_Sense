@@ -1,13 +1,27 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import { apiError, authApi } from '../services/api'
 import { useAuth } from '../context/AuthContext'
+
+function AuthBrand() {
+  return (
+    <div className="auth-brand">
+      <div className="brand-mark" aria-hidden="true">S</div>
+      <div>
+        <strong>StockSense</strong>
+        <span>Inventory intelligence</span>
+      </div>
+    </div>
+  )
+}
 
 export function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('manager@stocksense.com')
   const [password, setPassword] = useState('admin123')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -28,17 +42,28 @@ export function LoginPage() {
   return (
     <div className="auth-wrap">
       <div className="card auth-card">
+        <AuthBrand />
         <h1>Sign in</h1>
-        <p>Centralized inventory, live stock, and an append-only ledger.</p>
+        <p>Secure access to your live inventory workspace.</p>
         {error ? <div className="alert">{error}</div> : null}
         <form className="form" onSubmit={onSubmit}>
           <label>
-            Email
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            Login ID or email
+            <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </label>
           <label>
             Password
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <span className="password-field">
+              <input type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <button
+                className="password-toggle"
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </span>
           </label>
           <button className="btn" disabled={busy}>
             {busy ? 'Signing in…' : 'Login'}
@@ -79,6 +104,7 @@ export function RegisterPage() {
   return (
     <div className="auth-wrap">
       <div className="card auth-card">
+        <AuthBrand />
         <h1>Create account</h1>
         <p>Inventory managers and warehouse staff share the same operational workspace.</p>
         {error ? <div className="alert">{error}</div> : null}
